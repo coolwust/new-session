@@ -64,7 +64,19 @@ func (ds *Datastore) Put(ctx context.Context, sess *session.Session) error {
 }
 
 func (ds *Datastore) Del(ctx context.Context, id string) error {
-	return nil
+	err := datastore.RunInTransaction(ctx, func(ctx context.Context) error {
+		k := datastore.NewKey(ctx, ds.sessionKind, id, 0, nil)
+		q := datastore.NewQuery(ds.dataKind).Ancestor(k).Limit(1).KeysOnly()
+		if ks, err := q.GetAll(ctx); err != nil {
+			return err
+		} else if len(ks) == 0 {
+			return nil
+		}
+		if err := datastore.Delete(ctx, k); err != nil {
+			return err
+		}
+	}, nil)
+	return err
 }
 
 func (ds *Datastore) Clear(ctx context.Context) error {
